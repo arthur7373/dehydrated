@@ -81,34 +81,36 @@ Parameters:
 
 ## Install
 
-apt install joe mc git dnsutils bind9 
-cd opt
-git clone https://github.com/arthur7373/dehydrated
-cd dehydrated/mkdir /etc/dehydrated/
-
-nano /etc/dehydrated/config
+`apt install joe mc git dnsutils bind9`
+`cd opt`
+`git clone https://github.com/arthur7373/dehydrated`
+`cd dehydrated/mkdir /etc/dehydrated/`
+`nano /etc/dehydrated/config`
 Add below lines:
+
 ```
 CHALLENGETYPE="dns-01"
 DOMAINS_TXT="${BASEDIR}/domains.txt"
 ```
 
-nano /etc/dehydrated/domains.txt
+Create domain file to get wildcard certificate '*.<domain>' with an alternative name '<domain>'
+
+`nano /etc/dehydrated/domains.txt`
+
 ```
-# Create a certificate for '*.example.net' with an alternative name 'example.net'
-# and store it in the directory ${CERTDIR}/star.example.net
+# Create a certificate for '*.<domain>' with an alternative name '<domain>'
+# and store it in the directory ${CERTDIR}/star.<domain>
 # NOTE: It INCLUDES both wildcard certificate for subdomains
 # and the plain domian name
 #*.example.net example.net > star.example.net
 ```
 
-Create Hook for 
+Create Hook script using for _dns 01_ challenge via BIND9
+This hook script uses the nsupdate utility from the bind package to solve dns-01 challenges.
 
 nano /opt/dehydrated/hook2
 
-
-
-## Code
+# Code
 
 ```bash
 #!/usr/bin/env bash
@@ -166,19 +168,32 @@ key "<keyname>" {
 };
 ```
 
-To avoid making your entire production DNS subject to dynamic DNS updates, 
-then for each certificate domain you want:
+To avoid making your entire production DNS subject to dynamic DNS updates, then for each certificate domain you want. This is a secure approach because each host will have its own key, and hence can only obtain certificates for those domains you have explicitly authorized it for. Use /dev/random as an argument for dnssec-keygen for key generation to increase security further.
 
 1. In your main DNS infrastructure create a delegation: `_acme-challenge.<domain>. NS <your-nameserver>.`
 2. Create a new zone `_acme-challenge.<domain>` on `<your-nameserver>`, with an empty zonefile (just an SOA and NS record), writeable by the nameserver
+
+`nano /etc/bind/_acme-challenge.<domain>`
+
+
 ```
-nano /etc/bind/_acme-challenge.<domain>
-chown bind:bind /etc/bind/_acme-challenge.<domain>
-systemctl restart bind9
+$ORIGIN .
+$TTL 604800     ; 1 week
+_acme-challenge.<domain> IN SOA ns.<domain>. root.<domain>. (
+                                27         ; serial
+                                604800     ; refresh (1 week)
+                                86400      ; retry (1 day)
+                                2419200    ; expire (4 weeks)
+                                604800     ; minimum (1 week)
+                                )
+                        NS      ns.<domain>.
 ```
+`chown bind:bind /etc/bind/_acme-challenge.<domain>`
+`systemctl restart bind9`
+
 3. Create a new TSIG key: 
 ```
-dnssec-keygen -r /dev/urandom -a hmac-sha512 -b 128 -n HOST <keyname>
+dnssec-keygen -r /dev/urandom -a hmac-sha512 -b 512 -n HOST <keyname>
 ```
 
 4. Enable dynamic updates on the `_acme-challenge.<domain>` zone with this key
@@ -199,10 +214,18 @@ zone "_acme-challenge.example.net" {
 
 ~~~
 
-This is a secure approach because each host will have its own key, and hence can only obtain certificates for those domains you have explicitly authorized it for. Use /dev/random as an argument for dnssec-keygen for key generation to increase security further.
 
 
 
-dehydrated --register --accept-terms
+## Intital run
+`dehydrated --register --accept-terms`
 
-dehydrated  -c -k hook2 --register --accept-terms
+`dehydrated  -c -k hook2 --register --accept-terms`
+
+## Manual run
+
+Run
+`dehydrated  -c -k hook2`
+
+Force gettting new certificates even if valid
+`dehydrated  -c -k hook2 -x`
