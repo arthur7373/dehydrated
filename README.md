@@ -79,6 +79,129 @@ Parameters:
  --algo (-a) rsa|prime256v1|secp384r1 Which public key algorithm should be used? Supported: rsa, prime256v1 and secp384r1
 ```
 
+## Install
+
+apt install joe mc git dnsutils bind9 
+cd opt
+git clone https://github.com/arthur7373/dehydrated
+cd dehydrated/mkdir /etc/dehydrated/
+
+nano /etc/dehydrated/config
+Add below lines:
+```
+CHALLENGETYPE="dns-01"
+DOMAINS_TXT="${BASEDIR}/domains.txt"
+```
+
+nano /etc/dehydrated/domains.txt
+```
+# Create a certificate for '*.example.net' with an alternative name 'example.net'
+# and store it in the directory ${CERTDIR}/star.example.net
+# NOTE: It INCLUDES both wildcard certificate for subdomains
+# and the plain domian name
+#*.example.net example.net > star.example.net
+```
+
+Create Hook for 
+
+nano /opt/dehydrated/hook2
+
+
+
+## Code
+
+```bash
+#!/usr/bin/env bash
+
+#
+# Example how to deploy a DNS challenge using nsupdate
+#
+
+set -e
+set -u
+set -o pipefail
+
+NSUPDATE="nsupdate -k /opt/dehydrated/Kdnsupdatekey.private"
+DNSSERVER="127.0.0.1"
+TTL=300
+
+case "$1" in
+    "deploy_challenge")
+        printf "server %s\nupdate add _acme-challenge.%s. %d in TXT \"%s\"\nsend\n" "${DNSSERVER}" "${2}" "${TTL}" "${4}" | $NSUPDATE
+        ;;
+    "clean_challenge")
+        printf "server %s\nupdate delete _acme-challenge.%s. %d in TXT \"%s\"\nsend\n" "${DNSSERVER}" "${2}" "${TTL}" "${4}" | $NSUPDATE
+        ;;
+    "deploy_cert")
+        # optional:
+        # /path/to/deploy_cert.sh "$@"
+        ;;
+    "unchanged_cert")
+        # do nothing for now
+        ;;
+    "startup_hook")
+        # do nothing for now
+        ;;
+    "exit_hook")
+        # do nothing for now
+        ;;
+esac
+
+exit 0
+```
+
+chmod +x hook2
+ln -s  /opt/dehydrated/hook2 /usr/local/bin/hook2
+
+
+nano /opt/dehydrated/Kdnsupdatekey.private
+
+
+The file `/opt/dehydrated/Kdnsupdatekey.private` looks like this:
+
+```
+key "<keyname>" {
+  algorithm hmac-sha512;
+  secret "<key>";
+};
+```
+
+To avoid making your entire production DNS subject to dynamic DNS updates, 
+then for each certificate domain you want:
+
+1. In your main DNS infrastructure create a delegation: `_acme-challenge.<domain>. NS <your-nameserver>.`
+2. Create a new zone `_acme-challenge.<domain>` on `<your-nameserver>`, with an empty zonefile (just an SOA and NS record), writeable by the nameserver
+```
+nano /etc/bind/_acme-challenge.<domain>
+chown bind:bind /etc/bind/_acme-challenge.<domain>
+systemctl restart bind9
+```
+3. Create a new TSIG key: 
+```
+dnssec-keygen -r /dev/urandom -a hmac-sha512 -b 128 -n HOST <keyname>
+```
+
+4. Enable dynamic updates on the `_acme-challenge.<domain>` zone with this key
+
+e.g. for bind9:
+
+~~~
+key "<keyname>" {
+  algorithm hmac-sha512;
+  secret "<key>";
+};
+zone "_acme-challenge.example.net" {
+  type master;
+  file "/etc/bind/_acme-challenge.example.net";
+  masterfile-format text;
+  allow-update { key "<keyname>"; };
+};
+
+~~~
+
+This is a secure approach because each host will have its own key, and hence can only obtain certificates for those domains you have explicitly authorized it for. Use /dev/random as an argument for dnssec-keygen for key generation to increase security further.
+
+
 
 dehydrated --register --accept-terms
 
