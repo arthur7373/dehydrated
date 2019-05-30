@@ -196,7 +196,9 @@ _acme-challenge.<domain> IN SOA ns.<domain>. root.<domain>. (
                                 )
                         NS      ns.<domain>.
 ```
+
 `chown bind:bind /etc/bind/_acme-challenge.<domain>`
+
 `systemctl restart bind9`
 
 3. Create a new TSIG key: 
