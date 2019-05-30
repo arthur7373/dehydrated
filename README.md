@@ -81,13 +81,14 @@ Parameters:
 
 ## Install
 
-`apt install joe mc git dnsutils bind9`
-`cd opt`
-`git clone https://github.com/arthur7373/dehydrated`
-`cd dehydrated/mkdir /etc/dehydrated/`
+`apt install joe mc git dnsutils bind9 
+ cd opt
+ git clone https://github.com/arthur7373/dehydrated
+ cd dehydrated/mkdir /etc/dehydrated/
+ `
+ 
+Create config file:
 `nano /etc/dehydrated/config`
-Add below lines:
-
 ```
 CHALLENGETYPE="dns-01"
 DOMAINS_TXT="${BASEDIR}/domains.txt"
