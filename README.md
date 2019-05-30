@@ -87,7 +87,9 @@ Parameters:
 
 ` git clone https://github.com/arthur7373/dehydrated`
 
-` cd dehydrated/mkdir /etc/dehydrated/`
+` cd dehydrated`
+
+` mkdir /etc/dehydrated/`
  
 Create config file:
 
@@ -113,9 +115,10 @@ Create domain file to get wildcard certificate '*.<domain>' with an alternative 
 Create Hook script using for _dns 01_ challenge via BIND9
 This hook script uses the nsupdate utility from the bind package to solve dns-01 challenges.
 
-nano /opt/dehydrated/hook2
 
-# Code
+`nano /opt/dehydrated/hook2`
+
+
 
 ```bash
 #!/usr/bin/env bash
