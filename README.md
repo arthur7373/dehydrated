@@ -238,4 +238,10 @@ Run
 `dehydrated  -c -k hook2`
 
 Force gettting new certificates even if valid
+
 `dehydrated  -c -k hook2 -x`
+
+Cleanup (move unused certs in archive directory)
+
+`dehydrated -gc -k hook2`
+
